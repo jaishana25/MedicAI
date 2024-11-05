@@ -1,7 +1,7 @@
-import { useState } from "react";
 import axios from "axios";
-import ReactMarkdown from "react-markdown";
 import { Send } from "lucide-react";
+import { useState } from "react";
+import ReactMarkdown from "react-markdown";
 
 function AI() {
   const [question, setQuestion] = useState("");
@@ -14,7 +14,7 @@ function AI() {
     setAnswer("Loading your answer... \n It might take up to 10 seconds");
     try {
       const response = await axios({
-        url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=YOUR_API_KEY`,
+        url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AIzaSyDLflrlgC8YthAPU19lbm-UQfSNqtMRFgQ`,
         method: "post",
         data: {
           contents: [{ parts: [{ text: question }] }],
@@ -48,9 +48,8 @@ function AI() {
         ></textarea>
         <button
           type="submit"
-          className={`flex items-center bg-purple-500 text-white p-3 mr-4 mt-10 rounded-md hover:bg-purple-600 transition-all duration-300 ${
-            generatingAnswer ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
+          className={`flex items-center bg-purple-500 text-white p-3 mr-4 mt-10 rounded-md hover:bg-purple-600 transition-all duration-300 ${generatingAnswer ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           disabled={generatingAnswer}
         >
           Send <Send className="ml-2" />

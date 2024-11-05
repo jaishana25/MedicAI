@@ -1,13 +1,26 @@
-import React, { useEffect, useState } from 'react';
-import {
-  Container, Typography, Button, TextField, MenuItem,
-  Select, InputLabel, FormControl, Paper, List, ListItem,
-  ListItemText, Divider, Box, IconButton, Snackbar
-} from '@mui/material';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
-import { useDropzone } from 'react-dropzone';
 import { Delete, Visibility } from '@mui/icons-material';
+import {
+  Box,
+  Button,
+  Container,
+  Divider,
+  FormControl,
+  IconButton,
+  InputLabel,
+  List, ListItem,
+  ListItemText,
+  MenuItem,
+  Paper,
+  Select,
+  Snackbar,
+  TextField,
+  Typography
+} from '@mui/material';
+import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import axios from 'axios';
+import React, { useEffect, useState } from 'react';
+import { useDropzone } from 'react-dropzone';
 
 function ReportAnalysis({ username }) {
   const [treatments, setTreatments] = useState([]);
@@ -24,6 +37,9 @@ function ReportAnalysis({ username }) {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
+  const user = "admin"
+  const password = "abcd@1234"
+
   const onDrop = (acceptedFiles) => {
     const pdfFile = acceptedFiles[0];
     setFile(pdfFile);
@@ -36,15 +52,31 @@ function ReportAnalysis({ username }) {
   });
 
   useEffect(() => {
-    
+
+    const fetchTreatments = async () => {
+      try {
+        const response = await axios.get('http://127.0.0.1:8000/report-analysis/treatments', {
+          auth: {
+            "username": user,
+            "password": password,
+          },
+        });
+        setTreatments(response.data);
+        console.log(response.data)
+      } catch (error) {
+        console.error('Error fetching treatments:', error);
+      }
+    };
+    fetchTreatments()
+
     const savedReports = JSON.parse(localStorage.getItem('userReports')) || [];
-    const userReports = savedReports.filter(report => report.username === username); 
-    setFilteredReports(userReports); 
+    const userReports = savedReports.filter(report => report.username === username);
+    setFilteredReports(userReports);
 
     const savedTreatments = JSON.parse(localStorage.getItem('userTreatments')) || [];
     const userTreatments = savedTreatments.filter(treatment => treatment.username === username);
     setTreatments(userTreatments);
-  }, [username]);
+  }, [user]);
 
   const handleFileNameChange = (event) => {
     setFileName(event.target.value);
@@ -58,7 +90,7 @@ function ReportAnalysis({ username }) {
     const value = event.target.value;
     setSearchTerm(value);
     setShowDropdown(value.length > 0);
-  
+
     if (value) {
       setSelectedTreatment(value);
     } else {
@@ -77,7 +109,7 @@ function ReportAnalysis({ username }) {
 
     const newReport = {
       id: reports.length + 1,
-      username, 
+      username,
       fileName: fileName || (file ? file.name : 'Unnamed File'),
       treatment: selectedTreatment,
       uploadDate: uploadDate ? uploadDate.toLocaleDateString() : new Date().toLocaleDateString(),
@@ -87,7 +119,7 @@ function ReportAnalysis({ username }) {
     const updatedReports = [...reports, newReport];
     setReports(updatedReports);
     setFilteredReports(updatedReports);
-    localStorage.setItem('userReports', JSON.stringify(updatedReports)); 
+    localStorage.setItem('userReports', JSON.stringify(updatedReports));
     setFileName('');
     setSelectedTreatment('');
     setUploadDate(null);
@@ -99,20 +131,73 @@ function ReportAnalysis({ username }) {
     setSnackbarOpen(true);
   };
 
-  const handleFilterChange = (event) => {
-    const selectedTreatment = event.target.value;
-    setSelectedTreatment(selectedTreatment);
-    if (selectedTreatment) {
-      const filtered = reports.filter(report => report.treatment === selectedTreatment);
-      setFilteredReports(filtered);
-    } else {
-      setFilteredReports(reports); 
+  const fetchReports = async (treatmentId) => {
+
+    const url = treatmentId
+      ? `http://127.0.0.1:8000/report-analysis/reports/list/treatment/${treatmentId}`
+      : `http://127.0.0.1:8000/report-analysis/reports/list/`; // Fetch all if no treatmentId
+    try {
+      const response = await axios.get(url, {
+        auth: {
+          username: user,
+          password: password,
+        },
+      });
+      console.log(response.data)
+      setFilteredReports(response.data.medical_reports);
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+      setSnackbarMessage('Failed to fetch reports.');
+      setSnackbarOpen(true);
     }
   };
 
-  const handleCreateNewTreatment = () => {
+  const handleFilterChange = async (event) => {
+    const treatmentId = event.target.value;
+    setSelectedTreatment(treatmentId);
+    console.log(treatmentId)
+
+    if (treatmentId) {
+      // Fetch reports for the selected treatment
+      await fetchReports(treatmentId);
+    } else {
+      // Fetch all reports when "All" is selected
+      await fetchReports(); // Updated to call fetchReports with no arguments
+    }
+  };
+
+  // const handleFilterChange = (event) => {
+  //   const selectedTreatment = event.target.value;
+  //   setSelectedTreatment(selectedTreatment);
+  //   if (selectedTreatment) {
+  //     const filtered = reports.filter(report => report.treatment === selectedTreatment);
+  //     setFilteredReports(filtered);
+  //   } else {
+  //     setFilteredReports(reports);
+  //   }
+  // };
+
+  // NEW: Function to create a new treatment via API
+  const createTreatment = async (treatmentName) => {
+    try {
+      await axios.post('http://127.0.0.1:8000/report-analysis/treatments', { name: treatmentName }, {
+        auth: {
+          "username": user,
+          "password": password,
+        },
+      });
+      setSnackbarMessage('Treatment created successfully!');
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error('Error creating treatment:', error);
+      setSnackbarMessage('Failed to create treatment.');
+      setSnackbarOpen(true);
+    }
+  };
+
+  const handleCreateNewTreatment = async () => {
     if (newTreatment.trim() && !treatments.some(t => t.name === newTreatment.trim())) {
-      const newTreatmentObj = { id: treatments.length + 1, name: newTreatment.trim(), username }; 
+      const newTreatmentObj = { id: treatments.length + 1, name: newTreatment.trim(), username };
       const updatedTreatments = [...treatments, newTreatmentObj];
       setTreatments(updatedTreatments);
       localStorage.setItem('userTreatments', JSON.stringify(updatedTreatments));
@@ -121,7 +206,10 @@ function ReportAnalysis({ username }) {
       setShowNewTreatmentInput(false);
       setSearchTerm(newTreatment.trim());
       setShowDropdown(false);
-    
+
+      // NEW: Call the function to create a new treatment via API
+      await createTreatment(newTreatment.trim());
+
       const filtered = reports.filter(report => report.treatment === newTreatment.trim());
       setFilteredReports(filtered.length > 0 ? filtered : reports);
     } else if (treatments.some(t => t.name === newTreatment.trim())) {
@@ -256,27 +344,33 @@ function ReportAnalysis({ username }) {
             <em>All</em>
           </MenuItem>
           {treatments.map(treatment => (
-            <MenuItem key={treatment.id} value={treatment.name}>
+            <MenuItem key={treatment.id} value={treatment.name}> {/* Use treatment.id here */}
               {treatment.name}
             </MenuItem>
           ))}
         </Select>
       </FormControl>
       <List>
-        {filteredReports.map(report => (
-          <div key={report.id}>
-            <ListItem>
-              <ListItemText primary={report.fileName} secondary={`Treatment: ${report.treatment} | Date: ${report.uploadDate}`} />
-              <IconButton onClick={() => handleDeleteReport(report.id)}>
-                <Delete />
-              </IconButton>
-              <IconButton href={report.fileUrl} target="_blank" rel="noopener noreferrer">
-                <Visibility />
-              </IconButton>
-            </ListItem>
-            <Divider />
-          </div>
-        ))}
+        {filteredReports.length > 0 ? (
+          filteredReports.map(report => (
+            <div key={report.id}>
+              <ListItem>
+                <ListItemText primary={report.name} secondary={`Treatment: ${report.treatment} | Date: ${report.test_date}`} />
+                <IconButton onClick={() => handleDeleteReport(report.id)}>
+                  <Delete />
+                </IconButton>
+                <IconButton href={report.fileUrl} target="_blank" rel="noopener noreferrer">
+                  <Visibility />
+                </IconButton>
+              </ListItem>
+              <Divider />
+            </div>
+          ))
+        ) : (
+          <ListItem>
+            <ListItemText primary={`No reports for ${`the treatment: ${selectedTreatment}` || 'this treatment'}`} />
+          </ListItem>
+        )}
       </List>
       <Snackbar
         open={snackbarOpen}
