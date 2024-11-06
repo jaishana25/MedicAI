@@ -9,13 +9,13 @@ function FileUpload({ currentUser, files, setFiles }) {
 
   const handleUpload = () => {
     if (fileInput) {
-      
+
       const newFile = {
         name: fileInput.name,
-        user: currentUser 
+        user: currentUser
       };
       setFiles(prevFiles => [...prevFiles, newFile]);
-      setFileInput(null); 
+      setFileInput(null);
     }
   };
 

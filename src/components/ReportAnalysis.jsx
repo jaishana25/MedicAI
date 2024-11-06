@@ -25,6 +25,7 @@ import { useDropzone } from 'react-dropzone';
 function ReportAnalysis({ username }) {
   const [treatments, setTreatments] = useState([]);
   const [selectedTreatment, setSelectedTreatment] = useState('');
+  const [uploadTreatment, setUploadTreatment] = useState('');
   const [file, setFile] = useState(null);
   const [fileName, setFileName] = useState('');
   const [uploadDate, setUploadDate] = useState(null);
@@ -92,14 +93,43 @@ function ReportAnalysis({ username }) {
     setShowDropdown(value.length > 0);
 
     if (value) {
-      setSelectedTreatment(value);
+      setUploadTreatment(value);
     } else {
-      setSelectedTreatment('');
+      setUploadTreatment('');
     }
     setShowNewTreatmentInput(false);
   };
 
-  const handleSubmit = (event) => {
+  const uploadReport = async (newReport) => {
+    try {
+      const formData = new FormData();
+      formData.append('name', newReport.name);
+      formData.append('file', newReport.file);
+      if (newReport.date != null) formData.append('date', newReport.date);
+      if (newReport.treatment != '') formData.append('treatment', newReport.treatment);
+      console.log(formData);
+
+
+      const response = await axios.post('http://127.0.0.1:8000/report-analysis/reports/upload/', formData, {
+        auth: {
+          username: user,
+          password: password,
+        },
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      setSnackbarMessage('Report uploaded successfully!');
+      setSnackbarOpen(true);
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading report:', error);
+      setSnackbarMessage('Failed to upload report.');
+      setSnackbarOpen(true);
+    }
+  };
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!file) {
       setSnackbarMessage('Please upload a PDF file.');
@@ -108,27 +138,26 @@ function ReportAnalysis({ username }) {
     }
 
     const newReport = {
-      id: reports.length + 1,
-      username,
-      fileName: fileName || (file ? file.name : 'Unnamed File'),
-      treatment: selectedTreatment,
-      uploadDate: uploadDate ? uploadDate.toLocaleDateString() : new Date().toLocaleDateString(),
-      fileUrl: URL.createObjectURL(file),
+      name: fileName || file.name,
+      file: file,
+      date: uploadDate ? uploadDate.toISOString().split('T')[0] : null,
+      treatment: uploadTreatment,
     };
+
+    // Call uploadReport function to send data to the server
+    await uploadReport(newReport);
 
     const updatedReports = [...reports, newReport];
     setReports(updatedReports);
-    setFilteredReports(updatedReports);
-    localStorage.setItem('userReports', JSON.stringify(updatedReports));
     setFileName('');
-    setSelectedTreatment('');
+    setUploadTreatment('');
     setUploadDate(null);
+    setFile(null);
     setSearchTerm('');
     setNewTreatment('');
     setShowNewTreatmentInput(false);
+    setSnackbarMessage('');
     setShowDropdown(false);
-    setSnackbarMessage('Report submitted successfully!');
-    setSnackbarOpen(true);
   };
 
   const fetchReports = async (treatmentId) => {
